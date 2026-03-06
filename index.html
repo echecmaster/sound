@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Incredibox - Ultra Sound Studio</title>
     <style>
         :root {
@@ -12,6 +12,7 @@
         body {
             margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif;
             display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden;
+            touch-action: manipulation; /* Optimise le tactile */
         }
         
         #start-screen {
@@ -23,55 +24,46 @@
             border: none; border-radius: 50px; cursor: pointer; font-weight: bold; color: #000;
         }
 
-        /* Ring Progress */
         .controls-wrapper {
-            position: relative; width: 120px; height: 120px; margin: 15px;
-            display: flex; justify-content: center; align-items: center;
+            position: relative; width: 100px; height: 100px; margin: 10px;
+            display: flex; justify-content: center; align-items: center; flex-shrink: 0;
         }
         #progress-ring { position: absolute; transform: rotate(-90deg); }
-        #progress-ring circle { fill: none; stroke: #1a1a1a; stroke-width: 8; }
+        #progress-ring circle { fill: none; stroke: #1a1a1a; stroke-width: 6; }
         #progress-ring .bar {
-            stroke: var(--accent); stroke-width: 8; stroke-linecap: round;
+            stroke: var(--accent); stroke-width: 6; stroke-linecap: round;
             stroke-dasharray: 282.7; stroke-dashoffset: 282.7;
-            filter: drop-shadow(0 0 8px var(--accent));
         }
         .master-btn {
-            width: 80px; height: 80px; background: #1a1a1f; border: 1px solid #333;
-            border-radius: 50%; color: white; font-size: 2rem; cursor: pointer;
+            width: 70px; height: 70px; background: #1a1a1f; border: 1px solid #333;
+            border-radius: 50%; color: white; font-size: 1.5rem; cursor: pointer;
             z-index: 10; display: flex; align-items: center; justify-content: center;
-            transition: 0.2s;
         }
-        .master-btn:hover { background: #222229; border-color: var(--accent); }
 
-        canvas { width: 100%; height: 60px; background: #000; opacity: 0.8; }
+        canvas { width: 100%; height: 40px; background: #000; opacity: 0.8; flex-shrink: 0; }
 
-        .stage { display: flex; gap: 15px; margin: 10px; }
-        .character {
-            width: 90px; height: 150px; background: var(--panel); border: 2px solid #222;
-            border-radius: 15px; display: flex; flex-direction: column; align-items: center; 
-            justify-content: center; transition: 0.2s; position: relative;
+        /* Grille Mobile-Friendly */
+        #grid-scroll-container {
+            width: 100%; overflow-x: auto; flex-grow: 1; padding: 10px 0;
+            display: flex; align-items: center;
+            -webkit-overflow-scrolling: touch;
         }
-        .character.active-beat { background: #1c1c24; border-color: #444; transform: scale(1.02); }
-        .character.playing { border-color: var(--accent); box-shadow: 0 0 20px rgba(0,242,255,0.15); }
-        .slot-id { font-size: 0.6rem; color: #555; position: absolute; bottom: 10px; }
-
-        .pads { display: flex; gap: 12px; margin: 10px; }
-        .pad {
-            width: 60px; height: 60px; background: #15151a; border: 2px solid #222;
-            border-radius: 10px; cursor: pointer; display: flex; align-items: center;
-            justify-content: center; font-size: 0.6rem; font-weight: bold; color: #444;
+        #grid-container {
+            display: flex; flex-direction: column; gap: 5px; padding: 0 15px;
         }
-        .pad.assigned { color: #fff; border-color: #444; box-shadow: inset 0 0 10px rgba(255,255,255,0.05); }
 
-        .dock { width: 100%; background: #050507; padding: 15px; border-top: 1px solid #222; margin-top: auto; overflow-y: auto; }
-        .dock-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 8px; }
+        .dock { width: 100%; background: #050507; padding: 10px 0; border-top: 1px solid #222; overflow-y: auto; max-height: 35vh; }
+        .dock-row { display: flex; gap: 6px; justify-content: center; margin-bottom: 6px; }
+        
         .icon {
-            width: 44px; height: 44px; border-radius: 10px; cursor: grab;
+            width: 40px; height: 40px; border-radius: 8px; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            font-size: 0.75rem; font-weight: bold; color: rgba(0,0,0,0.8);
-            transition: 0.2s;
+            font-size: 0.7rem; font-weight: bold; color: rgba(0,0,0,0.8);
+            transition: transform 0.1s; flex-shrink: 0;
+            user-select: none; -webkit-tap-highlight-color: transparent;
         }
-        .icon:hover { transform: translateY(-5px) scale(1.1); }
+        .icon.selected { border: 3px solid white; transform: scale(1.1); z-index: 5; }
+
         .icon[data-type="beat"] { background: var(--b); }
         .icon[data-type="fx"] { background: var(--f); }
         .icon[data-type="melody"] { background: var(--m); }
@@ -82,8 +74,8 @@
 <body>
 
 <div id="start-screen">
-    <h1 style="color:var(--accent); letter-spacing: 5px;">STEP SEQUENCER</h1>
-    <button id="start-btn">ACTIVER L'AUDIO</button>
+    <h1 style="color:var(--accent); font-size: 1.5rem; letter-spacing: 3px;">BEAT STUDIO MOBILE</h1>
+    <button id="start-btn">LANCER</button>
 </div>
 
 <canvas id="visu"></canvas>
@@ -91,99 +83,87 @@
 <div class="controls-wrapper">
     <svg id="progress-ring" width="100" height="100">
         <circle cx="50" cy="50" r="45"></circle>
-        <circle class="bar" cx="50" cy="50" r="45"></circle>
+        <circle class="bar" cx="50" cy="50" r="45" style="filter:none;"></circle>
     </svg>
     <button class="master-btn" id="master-control">⏸</button>
 </div>
 
-<div id="grid-container" style="display: flex; flex-direction: column; gap: 6px; margin: auto; overflow-x: auto; max-width: 95vw; padding: 10px; border-radius: 10px; background: #121217; box-shadow: inset 0 0 15px #000;"></div>
+<div id="grid-scroll-container">
+    <div id="grid-container"></div>
+</div>
 
 <div class="dock" id="main-dock"></div>
 
 <script>
-// Retire la lumière du cercle sans toucher au CSS
-document.querySelector('.bar').style.filter = 'none';
-
 let audioCtx, analyser, dataArray, ctx, canvas;
 let isPlaying = false, timerId = null;
 const bpm = 120;
 let nextNoteTime = 0;
 let currentStep = 0;
 let lastStep = -1;
+let selectedSound = { id: 'b1', type: 'beat' }; // Son sélectionné par défaut
 
-// Configuration initiale : 5 lignes avec des sons par défaut
 const rowSounds = ['b1', 'bb1', 'f1', 'm1', 'v1'];
 const rowTypes = ['beat', 'beatbox', 'fx', 'melody', 'voice'];
 const grid = [];
-const cols = 32; // Grille plus longue !
+const cols = 32;
 
-// --- GÉNÉRATION DU DOCK DES SONS (EN BAS) ---
+// --- DOCK DES SONS (CLIC POUR SÉLECTIONNER) ---
 const categories = [{n:'beat', c:'b'}, {n:'fx', c:'f'}, {n:'melody', c:'m'}, {n:'voice', c:'v'}, {n:'beatbox', c:'bb'}];
 categories.forEach(cat => {
     const row = document.createElement('div'); row.className = 'dock-row';
     for(let i=1; i<=5; i++) {
         const icon = document.createElement('div');
-        icon.className = 'icon'; icon.draggable = true;
-        icon.dataset.id = cat.c + i; icon.dataset.type = cat.n;
+        icon.className = 'icon';
+        icon.dataset.id = cat.c + i; 
+        icon.dataset.type = cat.n;
         icon.innerText = (cat.c + i).toUpperCase();
         
-        // Envoi des infos quand on attrape le son
-        icon.ondragstart = (e) => {
-            e.dataTransfer.setData('id', icon.dataset.id);
-            e.dataTransfer.setData('type', icon.dataset.type);
+        icon.onclick = () => {
+            document.querySelectorAll('.dock .icon').forEach(i => i.classList.remove('selected'));
+            icon.classList.add('selected');
+            selectedSound = { id: icon.dataset.id, type: icon.dataset.type };
         };
+        if(cat.c === 'b' && i === 1) icon.classList.add('selected');
         row.appendChild(icon);
     }
     document.getElementById('main-dock').appendChild(row);
 });
 
-// --- GÉNÉRATION DE LA GRILLE (AU CENTRE) ---
+// --- GRILLE CENTRALE ---
 const gridContainer = document.getElementById('grid-container');
 for(let r=0; r<5; r++) {
     const rowDiv = document.createElement('div'); 
-    rowDiv.style.display = 'flex';
-    rowDiv.style.gap = '6px';
+    rowDiv.style.display = 'flex'; rowDiv.style.gap = '5px';
     
-    // --- L'EN-TÊTE DE LA LIGNE (Zone de dépôt) ---
+    // Header (clic pour changer le son de la ligne)
     const header = document.createElement('div');
     header.className = 'icon';
     header.dataset.type = rowTypes[r];
     header.innerText = rowSounds[r].toUpperCase();
-    header.style.opacity = '1';
-    header.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
-    header.style.marginRight = '15px'; // Espace pour séparer l'en-tête de la grille
+    header.style.marginRight = '10px';
+    header.style.position = 'sticky'; header.style.left = '0';
     
-    // Logique de Drag & Drop pour assigner un son à la ligne
-    header.ondragover = e => e.preventDefault();
-    header.ondrop = e => {
-        const soundId = e.dataTransfer.getData('id');
-        const soundType = e.dataTransfer.getData('type');
-        rowSounds[r] = soundId;
-        header.innerText = soundId.toUpperCase();
-        header.dataset.type = soundType;
-        
-        // Met à jour la couleur de toutes les cases de la ligne
-        rowCells.forEach(cell => cell.dataset.type = soundType);
+    header.onclick = () => {
+        rowSounds[r] = selectedSound.id;
+        header.dataset.type = selectedSound.type;
+        header.innerText = selectedSound.id.toUpperCase();
+        rowCells.forEach(cell => cell.dataset.type = selectedSound.type);
     };
     rowDiv.appendChild(header);
 
-    // --- LES CASES DE LA GRILLE ---
     const rowCells = [];
     for(let c=0; c<cols; c++) {
         const cell = document.createElement('div');
         cell.className = 'icon'; 
         cell.dataset.type = rowTypes[r];
-        cell.style.opacity = '0.15'; // Assombri par défaut
+        cell.style.opacity = '0.15';
         cell.dataset.active = '0';
-        
-        // Clic pour activer/désactiver sans changer la taille (pas de vibration)
         cell.onclick = () => {
             const isActive = cell.dataset.active === '1';
             cell.dataset.active = isActive ? '0' : '1';
             cell.style.opacity = isActive ? '0.15' : '1';
-            // On utilise inset pour le curseur blanc plus tard, donc on enlève juste l'opacité ici
         };
-        
         rowDiv.appendChild(cell);
         rowCells.push(cell);
     }
@@ -191,105 +171,57 @@ for(let r=0; r<5; r++) {
     grid.push(rowCells);
 }
 
-// --- INITIALISATION ---
+// --- LOGIQUE AUDIO ---
 document.getElementById('start-btn').onclick = async () => {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    analyser = audioCtx.createAnalyser(); 
-    analyser.connect(audioCtx.destination);
-    canvas = document.getElementById('visu'); 
-    ctx = canvas.getContext('2d');
-    
+    analyser = audioCtx.createAnalyser(); analyser.connect(audioCtx.destination);
+    canvas = document.getElementById('visu'); ctx = canvas.getContext('2d');
     document.getElementById('start-screen').remove();
-    isPlaying = true; 
-    startLoop(); 
-    draw();
+    isPlaying = true; startLoop(); draw();
 };
 
 document.getElementById('master-control').onclick = () => {
-    const btn = document.getElementById('master-control');
-    if (isPlaying) {
-        isPlaying = false; clearTimeout(timerId); audioCtx.suspend(); btn.innerText = "▶";
-    } else {
-        isPlaying = true; audioCtx.resume(); btn.innerText = "⏸"; startLoop();
-    }
+    if (isPlaying) { isPlaying = false; clearTimeout(timerId); audioCtx.suspend(); document.getElementById('master-control').innerText = "▶"; }
+    else { isPlaying = true; audioCtx.resume(); document.getElementById('master-control').innerText = "⏸"; startLoop(); }
 };
 
-// --- MOTEUR AUDIO PAS-À-PAS ---
 function startLoop() {
-    if(timerId) clearTimeout(timerId);
     nextNoteTime = audioCtx.currentTime + 0.05;
     currentStep = 0;
     scheduler();
 }
 
 function scheduler() {
-    if (!isPlaying) return;
     while (nextNoteTime < audioCtx.currentTime + 0.1) {
         playStep(currentStep, nextNoteTime);
-        nextNote();
+        const secondsPerBeat = 60.0 / bpm;
+        nextNoteTime += 0.25 * secondsPerBeat;
+        currentStep = (currentStep + 1) % cols;
     }
     timerId = setTimeout(scheduler, 25);
 }
 
-function nextNote() {
-    const secondsPerBeat = 60.0 / bpm;
-    nextNoteTime += 0.25 * secondsPerBeat; // 1/16 de note (1 pas)
-    currentStep++;
-    if (currentStep === cols) currentStep = 0;
-}
-
 function playStep(stepIndex, time) {
-    // Joue les sons des cases actives de cette colonne
     grid.forEach((row, rIndex) => {
-        const cell = row[stepIndex];
-        if (cell.dataset.active === '1') {
-            engine(rowSounds[rIndex], time, stepIndex);
-        }
+        if (row[stepIndex].dataset.active === '1') engine(rowSounds[rIndex], time, stepIndex);
     });
-
-    // Mise à jour de l'interface visuelle SANS VIBRATION
     setTimeout(() => {
-        if (lastStep >= 0) {
-            for(let r=0; r<5; r++) {
-                grid[r][lastStep].style.boxShadow = 'none'; // Efface le curseur précédent
-            }
-        }
-        for(let r=0; r<5; r++) {
-            // Utilise 'inset' pour dessiner à l'intérieur de la boîte, ça ne décale pas les éléments !
-            grid[r][stepIndex].style.boxShadow = 'inset 0 0 0 3px rgba(255, 255, 255, 0.8)';
-        }
+        if (lastStep >= 0) grid.forEach(r => r[lastStep].style.boxShadow = 'none');
+        grid.forEach(r => r[stepIndex].style.boxShadow = 'inset 0 0 0 2px white');
         lastStep = stepIndex;
     }, (time - audioCtx.currentTime) * 1000);
 }
 
-// --- TON MOTEUR DE SON ORIGINAL (Adapté pour la grille) ---
-function engine(id, t, stepIndex) {
-    let i = stepIndex; // Utilisé pour faire varier la mélodie
-    
-    // BEATS
-    if(id === 'b1') playDrum(t, 60, 0.4, 0.8, 'sine');
+// --- MOTEUR DE SON ---
+function engine(id, t, step) {
+    if(id === 'b1') playDrum(t, 60, 0.3, 0.8, 'sine');
     if(id === 'b2') playNoise(t, 0.05, 0.1);
-    if(id === 'b3') playDrum(t, 200, 0.15, 0.5, 'triangle');
-    if(id === 'b4') playDrum(t, 100, 0.3, 0.6, 'sine');
-    if(id === 'b5') playNoise(t, 0.02, 0.05);
-
-    // MELODIES
     if(id.startsWith('m')) {
-        let notes = [261, 329, 392, 523, 440, 349, 293, 261];
-        let f = notes[(i + parseInt(id[1] || 1)) % 8];
-        playSynth(t, f, 0.4, id==='m3'?'sawtooth':'sine');
+        let f = [261, 329, 392, 523, 440, 349, 293, 261][(step + parseInt(id[1]||1)) % 8];
+        playSynth(t, f, 0.3, 'sine');
     }
-
-    // BEATBOX
-    if(id.startsWith('bb')) {
-        if(i%2===0) playDrum(t, 80, 0.2, 0.7, 'square'); 
-        else playNoise(t, 0.1, 0.3);
-    }
-
-    // FX & VOICE
-    if(id.startsWith('f') || id.startsWith('v')) {
-        playSynth(t, 440 + (i*5), 0.8, 'sawtooth', true);
-    }
+    if(id.startsWith('bb')) playDrum(t, 80, 0.2, 0.7, 'square');
+    if(id.startsWith('f') || id.startsWith('v')) playSynth(t, 440, 0.5, 'sawtooth', true);
 }
 
 function playDrum(t, f, d, vol, type) {
@@ -304,38 +236,31 @@ function playSynth(t, f, d, type, slide=false) {
     const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
     o.type = type; o.frequency.setValueAtTime(f, t);
     if(slide) o.frequency.exponentialRampToValueAtTime(f/2, t + d);
-    g.gain.setValueAtTime(0.15, t); g.gain.linearRampToValueAtTime(0, t + d);
+    g.gain.setValueAtTime(0.1, t); g.gain.linearRampToValueAtTime(0, t + d);
     o.connect(g); g.connect(analyser); o.start(t); o.stop(t + d);
 }
 
 function playNoise(t, vol, d) {
-    const bufferSize = audioCtx.sampleRate * d;
-    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-    const noise = audioCtx.createBufferSource(); noise.buffer = buffer;
+    const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * d, audioCtx.sampleRate);
+    for (let i = 0; i < buffer.length; i++) buffer.getChannelData(0)[i] = Math.random() * 2 - 1;
+    const n = audioCtx.createBufferSource(); n.buffer = buffer;
     const g = audioCtx.createGain(); g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.01, t + d);
-    noise.connect(g); g.connect(analyser); noise.start(t);
+    n.connect(g); g.connect(analyser); n.start(t);
 }
 
-// --- VISUALISEUR ---
 function draw() {
     requestAnimationFrame(draw);
     if(!isPlaying) return;
-    
     dataArray = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(dataArray);
     ctx.fillStyle = 'black'; ctx.fillRect(0,0,canvas.width,canvas.height);
-    for(let i=0; i<dataArray.length; i++) {
+    for(let i=0; i<dataArray.length; i+=2) {
         ctx.fillStyle = `hsl(${i*1.2 + 190}, 100%, 50%)`;
-        ctx.fillRect(i*4, canvas.height, 3, -dataArray[i]/2);
+        ctx.fillRect(i*2, canvas.height, 2, -dataArray[i]/3);
     }
-
-    let now = audioCtx.currentTime;
-    const loopDur = (60 / bpm) * 8; // La boucle dure maintenant 8 temps (32 cases)
-    const elapsed = now % loopDur;
-    document.querySelector('.bar').style.strokeDashoffset = 282.7 - (elapsed / loopDur * 282.7);
+    let dur = (60/bpm)*8;
+    document.querySelector('.bar').style.strokeDashoffset = 282.7 - ((audioCtx.currentTime % dur) / dur * 282.7);
 }
 </script>
 </body>
